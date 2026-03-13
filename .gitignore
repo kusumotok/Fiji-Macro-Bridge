@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+plugin/target/
+plugin/dependency-reduced-pom.xml
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
