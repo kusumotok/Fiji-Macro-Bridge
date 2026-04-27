@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['C:\\Users\\Ikegami-Lab\\Documents\\Fiji_Macro_Bridge\\fiji_mcp_macro.py'],
+    ['fiji_mcp_macro.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='fiji_mcp_macro',
+    name='fiji-mcp-server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

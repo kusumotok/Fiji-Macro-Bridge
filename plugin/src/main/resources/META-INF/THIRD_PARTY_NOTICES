@@ -1,0 +1,10 @@
+Fiji Macro Bridge includes the following third-party component in this JAR:
+
+1. org.json:json:20231013
+   - Upstream: https://github.com/stleary/JSON-java
+   - License: Public Domain
+   - Packaging note: shaded into this JAR
+
+This JAR is intended to run inside Fiji/ImageJ and depends on ImageJ classes
+provided by the host application. Those classes are not redistributed inside
+this JAR.

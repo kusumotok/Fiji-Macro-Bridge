@@ -14,10 +14,17 @@ Thumbs.db
 
 # Claude Code
 .claude/
+.codex
 
 # PyInstaller
 build/
 dist/
+release/
 
 # Python venv
 .venv/
+.venv-release/
+
+# Release-time generated metadata
+requirements-lock.txt
+PYTHON_BUNDLE_LICENSES.md

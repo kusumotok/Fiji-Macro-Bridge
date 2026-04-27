@@ -1,10 +1,18 @@
 ﻿# Fiji Macro Bridge
 
-Claude Desktop から GUI 動作中の Fiji を最小ツール面で操作するための bridge です。
+MCP client から GUI 動作中の Fiji を最小ツール面で操作するための bridge です。
+
+一般利用者は source を clone せず、GitHub Releases の配布物を使ってください。
 
 詳細仕様は [SPEC.md](./SPEC.md) を参照してください。
 
-## セットアップ
+## Release-first
+
+- 利用者向けの標準導線は release 配布物です
+- source build は contributor / power user 向けです
+- Windows 向けの exe packaging 手順は [docs/build-windows-release.md](./docs/build-windows-release.md) にまとめています
+
+## Build From Source
 
 ```bash
 pip install -r requirements.txt
@@ -16,7 +24,7 @@ mvn package
 
 その後、Fiji で `Plugins > Macro Bridge > Fiji Macro Bridge` を実行します。
 
-## Claude Desktop 設定
+## MCP Client 設定
 
 ```json
 {
@@ -32,6 +40,8 @@ mvn package
   }
 }
 ```
+
+source build では `python fiji_mcp_macro.py` を MCP server command に指定します。release 配布物では Python の代わりに bundled executable を指定します。
 
 `launch_fiji` は内部で `ImageJ-win64.exe -eval "run('Fiji Macro Bridge', '5048');"` を使って plugin を起動します。
 
