@@ -102,6 +102,17 @@ function Ensure-ParentDir {
     }
 }
 
+function Write-Utf8NoBom {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+
+    Ensure-ParentDir $Path
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
 function Write-ConfigSnippet {
     param(
         [string]$OutputPath,
@@ -121,7 +132,8 @@ function Write-ConfigSnippet {
         }
     }
 
-    $snippet | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    $json = $snippet | ConvertTo-Json -Depth 10
+    Write-Utf8NoBom -Path $OutputPath -Content $json
 }
 
 function Remove-ClaudeServerEntry {
@@ -145,7 +157,8 @@ function Remove-ClaudeServerEntry {
     }
 
     $config.mcpServers.PSObject.Properties.Remove("fiji-macro")
-    $config | ConvertTo-Json -Depth 20 | Set-Content -Path $ConfigPath -Encoding UTF8
+    $json = $config | ConvertTo-Json -Depth 20
+    Write-Utf8NoBom -Path $ConfigPath -Content $json
 }
 
 function Update-ClaudeConfig {
@@ -254,7 +267,8 @@ $manifest = [ordered]@{
     claude_config_path = $ClaudeConfigPath
     claude_config_updated = (-not $SkipClaudeConfig)
 }
-($manifest | ConvertTo-Json -Depth 10) | Set-Content -Path (Join-Path $installRoot "install_manifest.json") -Encoding UTF8
+$manifestJson = $manifest | ConvertTo-Json -Depth 10
+Write-Utf8NoBom -Path (Join-Path $installRoot "install_manifest.json") -Content $manifestJson
 
 Write-Host ""
 Write-Host "Installed MCP server to: $installedExe"

@@ -4,6 +4,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Write-Utf8NoBom {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+
+    $parent = Split-Path -Parent $Path
+    if ($parent -and -not (Test-Path $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
 if (-not $InstallRoot) {
     $InstallRoot = Join-Path $env:LOCALAPPDATA "FijiMacroBridge"
 }
@@ -36,7 +51,8 @@ function Remove-ClaudeServerEntry {
     }
 
     $config.mcpServers.PSObject.Properties.Remove("fiji-macro")
-    $config | ConvertTo-Json -Depth 20 | Set-Content -Path $ConfigPath -Encoding UTF8
+    $json = $config | ConvertTo-Json -Depth 20
+    Write-Utf8NoBom -Path $ConfigPath -Content $json
 }
 
 if ($manifest.claude_config_updated) {
