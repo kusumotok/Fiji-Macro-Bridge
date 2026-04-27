@@ -101,7 +101,11 @@ class FijiMacroServer:
                 ),
                 Tool(
                     name="run_macro",
-                    description="Execute an ImageJ macro (IJ1 macro language).",
+                    description=(
+                        "Execute an ImageJ macro (IJ1 macro language). Returns JSON with the "
+                        "macro result string, added/total Fiji log lines, any newly opened "
+                        "images, and the current Results Table row count."
+                    ),
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -141,7 +145,7 @@ class FijiMacroServer:
                     ]
 
                 result = await asyncio.to_thread(self._send_command, name, arguments)
-                if name == "get_results":
+                if name in ("run_macro", "get_results"):
                     text = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
                 else:
                     text = str(result)
@@ -167,4 +171,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

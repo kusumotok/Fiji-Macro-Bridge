@@ -27,6 +27,7 @@ import java.awt.Label;
 import java.awt.TextComponent;
 import java.awt.Window;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -202,13 +203,18 @@ public class FijiMacroBridge implements PlugIn {
         return imp;
     }
 
-    private String runMacro(JSONObject args) throws Exception {
+    private JSONObject runMacro(JSONObject args) throws Exception {
+        int logLinesBefore = countLogLines();
+        int[] idsBefore = WindowManager.getIDList();
+        int[] imageIdsBefore = idsBefore != null ? idsBefore : new int[0];
+
         MacroDialogMonitor monitor = new MacroDialogMonitor();
         monitor.start();
+        String macroResult;
         try {
             Interpreter interpreter = new Interpreter();
             interpreter.setIgnoreErrors(true);
-            String result = interpreter.run(args.getString("macro"), null);
+            macroResult = interpreter.run(args.getString("macro"), null);
             String dialogMessage = monitor.stopAndGetMessage();
 
             if (dialogMessage != null) {
@@ -217,16 +223,61 @@ public class FijiMacroBridge implements PlugIn {
             if (interpreter.wasError()) {
                 throw new Exception(formatInterpreterError(interpreter));
             }
-            if (result == null) {
-                return "";
-            }
-            if ("[aborted]".equals(result)) {
+            if ("[aborted]".equals(macroResult)) {
                 throw new Exception("Macro aborted");
             }
-            return result;
         } finally {
             monitor.stop();
         }
+
+        if (macroResult == null) {
+            macroResult = "";
+        }
+
+        int logLinesAfter = countLogLines();
+        int[] idsAfter = WindowManager.getIDList();
+        int[] imageIdsAfter = idsAfter != null ? idsAfter : new int[0];
+
+        Set<Integer> beforeSet = new HashSet<Integer>();
+        for (int id : imageIdsBefore) {
+            beforeSet.add(id);
+        }
+
+        JSONArray newImages = new JSONArray();
+        for (int id : imageIdsAfter) {
+            if (beforeSet.contains(id)) {
+                continue;
+            }
+            ImagePlus image = WindowManager.getImage(id);
+            if (image == null) {
+                continue;
+            }
+            JSONObject entry = new JSONObject();
+            entry.put("id", id);
+            entry.put("title", image.getTitle());
+            newImages.put(entry);
+        }
+
+        JSONObject response = new JSONObject();
+        response.put("result", macroResult);
+        response.put("log_lines_added", Math.max(0, logLinesAfter - logLinesBefore));
+        response.put("log_total_lines", logLinesAfter);
+        response.put("new_images_opened", newImages);
+        response.put("results_table_rows", getResultsTableRowCount());
+        return response;
+    }
+
+    private int countLogLines() {
+        String log = IJ.getLog();
+        if (log == null || log.isEmpty()) {
+            return 0;
+        }
+        return log.split("\n").length;
+    }
+
+    private int getResultsTableRowCount() {
+        ResultsTable rt = ResultsTable.getResultsTable();
+        return rt != null ? rt.size() : 0;
     }
 
     private String formatInterpreterError(Interpreter interpreter) {
@@ -461,4 +512,3 @@ public class FijiMacroBridge implements PlugIn {
         return java.util.Base64.getEncoder().encodeToString(baos.toByteArray());
     }
 }
-
