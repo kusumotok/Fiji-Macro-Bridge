@@ -9,6 +9,7 @@ pushd "%ROOT%" >nul
 
 set VENV_DIR=.venv-release
 set RELEASE_DIR=release\windows-x64
+set RELEASE_ZIP=release\fiji-macro-bridge-windows-x64.zip
 set DIST_EXE=dist\fiji-mcp-server.exe
 set JAR_FILE=plugin\target\fiji-macro-bridge-1.0.0.jar
 set SERVER_DIR=server
@@ -25,6 +26,7 @@ python -m pip install -r "%SERVER_DIR%\requirements-build.txt" || goto :fail
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist "%RELEASE_DIR%" rmdir /s /q "%RELEASE_DIR%"
+if exist "%RELEASE_ZIP%" del /f /q "%RELEASE_ZIP%"
 
 python -m pip freeze > requirements-lock.txt || goto :fail
 pip-licenses --format=markdown --with-urls --with-license-file > PYTHON_BUNDLE_LICENSES.md || goto :fail
@@ -59,8 +61,11 @@ copy /y "THIRD_PARTY_NOTICES.md" "%RELEASE_DIR%\THIRD_PARTY_NOTICES.md" >nul || 
 copy /y "PYTHON_BUNDLE_LICENSES.md" "%RELEASE_DIR%\PYTHON_BUNDLE_LICENSES.md" >nul || goto :fail
 copy /y "requirements-lock.txt" "%RELEASE_DIR%\requirements-lock.txt" >nul || goto :fail
 
+powershell -NoProfile -Command "Compress-Archive -Path '%RELEASE_DIR%' -DestinationPath '%RELEASE_ZIP%' -Force" || goto :fail
+
 echo.
 echo Windows release bundle created in %RELEASE_DIR%
+echo Release zip created at %RELEASE_ZIP%
 goto :done
 
 :fail_plugin
