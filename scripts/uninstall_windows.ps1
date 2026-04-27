@@ -19,6 +19,20 @@ function Write-Utf8NoBom {
     [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
 }
 
+function Invoke-DeferredCleanup {
+    param([string]$TargetDir)
+
+    $cleanupBat = Join-Path $env:TEMP ("fiji-macro-bridge-cleanup-" + [guid]::NewGuid().ToString() + ".bat")
+    $cleanupLines = @(
+        "@echo off",
+        "timeout /t 2 /nobreak >nul",
+        ('rmdir /s /q "{0}"' -f $TargetDir),
+        ('del /f /q "{0}"' -f $cleanupBat)
+    )
+    [System.IO.File]::WriteAllLines($cleanupBat, $cleanupLines, (New-Object System.Text.ASCIIEncoding))
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $cleanupBat -WindowStyle Hidden
+}
+
 if (-not $InstallRoot) {
     $InstallRoot = Join-Path $env:LOCALAPPDATA "FijiMacroBridge"
 }
@@ -64,7 +78,7 @@ if ($manifest.installed_jar -and (Test-Path $manifest.installed_jar)) {
 }
 
 if (Test-Path $InstallRoot) {
-    Remove-Item -Path $InstallRoot -Recurse -Force
+    Invoke-DeferredCleanup -TargetDir $InstallRoot
 }
 
 Write-Host ""
@@ -76,7 +90,8 @@ if ($manifest.installed_jar) {
 }
 if ($manifest.claude_config_updated) {
     Write-Host "Removed Claude Desktop MCP entry from:"
-    Write-Host "  $($manifest.claude_config_path)"
+Write-Host "  $($manifest.claude_config_path)"
 }
 Write-Host ""
+Write-Host "Scheduled removal of the local install directory."
 Write-Host "Restart your MCP client if it is running."
