@@ -8,6 +8,10 @@ Produce a release directory containing:
 
 - `fiji-mcp-server.exe`
 - `fiji-macro-bridge-1.0.0.jar`
+- `install_windows.ps1`
+- `install.bat`
+- `uninstall_windows.ps1`
+- `uninstall.bat`
 - `LICENSE.txt`
 - `THIRD_PARTY_NOTICES.md`
 - `PYTHON_BUNDLE_LICENSES.md`
@@ -30,10 +34,10 @@ scripts\build_windows_release.bat
 The script will:
 
 1. Create `.venv-release` if missing
-2. Install `requirements-build.txt`
+2. Install `server/requirements-build.txt`
 3. Freeze Python dependency versions to `requirements-lock.txt`
 4. Generate `PYTHON_BUNDLE_LICENSES.md`
-5. Build `dist\fiji-mcp-server.exe` with PyInstaller
+5. Build `dist\fiji-mcp-server.exe` with `server/fiji_mcp_macro.spec`
 6. Build the plugin JAR if needed
 7. Collect release assets into `release\windows-x64`
 

@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+server/__pycache__/
 plugin/target/
 plugin/dependency-reduced-pom.xml
 

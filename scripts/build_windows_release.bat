@@ -11,6 +11,7 @@ set VENV_DIR=.venv-release
 set RELEASE_DIR=release\windows-x64
 set DIST_EXE=dist\fiji-mcp-server.exe
 set JAR_FILE=plugin\target\fiji-macro-bridge-1.0.0.jar
+set SERVER_DIR=server
 
 if not exist "%VENV_DIR%\Scripts\python.exe" (
     py -3 -m venv "%VENV_DIR%" || goto :fail
@@ -19,7 +20,7 @@ if not exist "%VENV_DIR%\Scripts\python.exe" (
 call "%VENV_DIR%\Scripts\activate.bat" || goto :fail
 
 python -m pip install --upgrade pip || goto :fail
-python -m pip install -r requirements-build.txt || goto :fail
+python -m pip install -r "%SERVER_DIR%\requirements-build.txt" || goto :fail
 
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
@@ -28,7 +29,7 @@ if exist "%RELEASE_DIR%" rmdir /s /q "%RELEASE_DIR%"
 python -m pip freeze > requirements-lock.txt || goto :fail
 pip-licenses --format=markdown --with-urls --with-license-file > PYTHON_BUNDLE_LICENSES.md || goto :fail
 
-pyinstaller --clean fiji_mcp_macro.spec || goto :fail
+pyinstaller --clean "%SERVER_DIR%\fiji_mcp_macro.spec" || goto :fail
 
 if not exist "%JAR_FILE%" (
     pushd plugin >nul
@@ -49,6 +50,10 @@ if not exist "%JAR_FILE%" (
 mkdir "%RELEASE_DIR%" || goto :fail
 copy /y "%DIST_EXE%" "%RELEASE_DIR%\fiji-mcp-server.exe" >nul || goto :fail
 copy /y "%JAR_FILE%" "%RELEASE_DIR%\fiji-macro-bridge-1.0.0.jar" >nul || goto :fail
+copy /y "scripts\install_windows.ps1" "%RELEASE_DIR%\install_windows.ps1" >nul || goto :fail
+copy /y "scripts\install_windows.bat" "%RELEASE_DIR%\install.bat" >nul || goto :fail
+copy /y "scripts\uninstall_windows.ps1" "%RELEASE_DIR%\uninstall_windows.ps1" >nul || goto :fail
+copy /y "scripts\uninstall_windows.bat" "%RELEASE_DIR%\uninstall.bat" >nul || goto :fail
 copy /y "LICENSE" "%RELEASE_DIR%\LICENSE.txt" >nul || goto :fail
 copy /y "THIRD_PARTY_NOTICES.md" "%RELEASE_DIR%\THIRD_PARTY_NOTICES.md" >nul || goto :fail
 copy /y "PYTHON_BUNDLE_LICENSES.md" "%RELEASE_DIR%\PYTHON_BUNDLE_LICENSES.md" >nul || goto :fail
