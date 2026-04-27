@@ -117,6 +117,65 @@ function Write-Utf8NoBom {
     [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
 }
 
+# PS 5.1's ConvertTo-Json aligns values to the colon, producing a staircase
+# layout for nested objects.  Compress first, then re-indent cleanly.
+function ConvertTo-Json2 {
+    param([Parameter(ValueFromPipeline)][object]$InputObject, [int]$Depth = 10)
+    process {
+        $compressed = $InputObject | ConvertTo-Json -Depth $Depth -Compress
+        Format-Json $compressed
+    }
+}
+
+function Format-Json {
+    param([string]$Json, [int]$IndentSize = 2)
+    $indent = 0
+    $sb = [System.Text.StringBuilder]::new()
+    $inString = $false
+    $escape = $false
+    foreach ($ch in $Json.ToCharArray()) {
+        if ($escape) {
+            $sb.Append($ch) | Out-Null
+            $escape = $false
+            continue
+        }
+        if ($ch -eq '\' -and $inString) {
+            $sb.Append($ch) | Out-Null
+            $escape = $true
+            continue
+        }
+        if ($ch -eq '"') { $inString = -not $inString }
+        if ($inString) { $sb.Append($ch) | Out-Null; continue }
+        switch ($ch) {
+            '{' {
+                $sb.Append($ch) | Out-Null; $indent++
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+            }
+            '[' {
+                $sb.Append($ch) | Out-Null; $indent++
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+            }
+            '}' {
+                $indent--
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+                $sb.Append($ch) | Out-Null
+            }
+            ']' {
+                $indent--
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+                $sb.Append($ch) | Out-Null
+            }
+            ',' {
+                $sb.Append($ch) | Out-Null
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+            }
+            ':' { $sb.Append(': ') | Out-Null }
+            default { if ($ch -ne ' ') { $sb.Append($ch) | Out-Null } }
+        }
+    }
+    $sb.ToString()
+}
+
 function Write-ConfigSnippet {
     param(
         [string]$OutputPath,
@@ -136,7 +195,7 @@ function Write-ConfigSnippet {
         }
     }
 
-    $json = $snippet | ConvertTo-Json -Depth 10
+    $json = $snippet | ConvertTo-Json2 -Depth 10
     Write-Utf8NoBom -Path $OutputPath -Content $json
 }
 
@@ -161,7 +220,7 @@ function Remove-ClaudeServerEntry {
     }
 
     $config.mcpServers.PSObject.Properties.Remove("fiji-macro")
-    $json = $config | ConvertTo-Json -Depth 20
+    $json = $config | ConvertTo-Json2 -Depth 20
     Write-Utf8NoBom -Path $ConfigPath -Content $json
 }
 
@@ -213,7 +272,8 @@ function Update-ClaudeConfig {
     }
     $config.mcpServers | Add-Member -MemberType NoteProperty -Name "fiji-macro" -Value $serverEntry -Force
 
-    $config | ConvertTo-Json -Depth 20 | Set-Content -Path $ConfigPath -Encoding UTF8
+    $json = $config | ConvertTo-Json2 -Depth 20
+    Write-Utf8NoBom -Path $ConfigPath -Content $json
 }
 
 $resolvedBundleDir = Resolve-BundleDir $BundleDir
@@ -288,7 +348,7 @@ $manifest = [ordered]@{
     claude_config_path = $ClaudeConfigPath
     claude_config_updated = (-not $SkipClaudeConfig)
 }
-$manifestJson = $manifest | ConvertTo-Json -Depth 10
+$manifestJson = $manifest | ConvertTo-Json2 -Depth 10
 Write-Utf8NoBom -Path (Join-Path $installRoot "install_manifest.json") -Content $manifestJson
 
 Write-Host ""
