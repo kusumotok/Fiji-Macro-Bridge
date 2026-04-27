@@ -27,8 +27,12 @@ function Find-FijiPath {
     $candidates = @(
         "$env:USERPROFILE\Fiji.app\ImageJ-win64.exe",
         "$env:USERPROFILE\Fiji.app\ImageJ-win32.exe",
+        "$env:USERPROFILE\Fiji.app\Fiji-windows-x64.exe",
+        "$env:USERPROFILE\Fiji.app\Fiji-windows.exe",
         "$env:ProgramFiles\Fiji.app\ImageJ-win64.exe",
-        "${env:ProgramFiles(x86)}\Fiji.app\ImageJ-win32.exe"
+        "$env:ProgramFiles\Fiji.app\Fiji-windows-x64.exe",
+        "${env:ProgramFiles(x86)}\Fiji.app\ImageJ-win32.exe",
+        "${env:ProgramFiles(x86)}\Fiji.app\Fiji-windows.exe"
     )
 
     foreach ($candidate in $candidates) {
@@ -46,7 +50,7 @@ function Select-FijiPathDialog {
 
     $dialog = New-Object System.Windows.Forms.OpenFileDialog
     $dialog.Title = "Select Fiji executable"
-    $dialog.Filter = "Fiji executable (ImageJ-win*.exe)|ImageJ-win*.exe|Executable files (*.exe)|*.exe|All files (*.*)|*.*"
+    $dialog.Filter = "Fiji executable (ImageJ-win*.exe;Fiji-windows*.exe)|ImageJ-win*.exe;Fiji-windows*.exe|Executable files (*.exe)|*.exe|All files (*.*)|*.*"
     $dialog.Multiselect = $false
 
     if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
@@ -161,6 +165,21 @@ function Remove-ClaudeServerEntry {
     Write-Utf8NoBom -Path $ConfigPath -Content $json
 }
 
+function Find-ClaudeConfigPath {
+    $candidates = @(
+        (Join-Path $env:APPDATA "Claude\claude_desktop_config.json"),
+        (Join-Path $env:LOCALAPPDATA "Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json")
+    )
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path $candidate)) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+
+    return $candidates[0]
+}
+
 function Update-ClaudeConfig {
     param(
         [string]$ConfigPath,
@@ -235,9 +254,11 @@ if (-not (Test-Path $installRoot)) {
 }
 
 $installedExe = Join-Path $installRoot "fiji-mcp-server.exe"
+$exeAlreadyPresent = Test-Path $installedExe
 Copy-Item -Path $bundledServerExe -Destination $installedExe -Force
 
 $installedJar = Join-Path $pluginsDir "fiji-macro-bridge-1.0.0.jar"
+$jarAlreadyPresent = Test-Path $installedJar
 Copy-Item -Path $jarPath -Destination $installedJar -Force
 
 $snippetPath = Join-Path $resolvedBundleDir "fiji-macro-config-snippet.json"
@@ -245,7 +266,7 @@ Write-ConfigSnippet -OutputPath $snippetPath -ExePath $installedExe -ResolvedFij
 
 if (-not $SkipClaudeConfig) {
     if (-not $ClaudeConfigPath) {
-        $ClaudeConfigPath = Join-Path $env:APPDATA "Claude\claude_desktop_config.json"
+        $ClaudeConfigPath = Find-ClaudeConfigPath
     }
     Update-ClaudeConfig -ConfigPath $ClaudeConfigPath -ExePath $installedExe -ResolvedFijiPath $FijiPath
 }
@@ -271,8 +292,13 @@ $manifestJson = $manifest | ConvertTo-Json -Depth 10
 Write-Utf8NoBom -Path (Join-Path $installRoot "install_manifest.json") -Content $manifestJson
 
 Write-Host ""
-Write-Host "Installed MCP server to: $installedExe"
-Write-Host "Installed plugin JAR to: $installedJar"
+if ($exeAlreadyPresent -or $jarAlreadyPresent) {
+    Write-Host "Updated existing Fiji Macro Bridge installation."
+} else {
+    Write-Host "Installed Fiji Macro Bridge."
+}
+Write-Host "MCP server path: $installedExe"
+Write-Host "Plugin JAR path: $installedJar"
 Write-Host "Generated MCP config snippet: $snippetPath"
 if (-not $SkipClaudeConfig) {
     Write-Host "Updated Claude Desktop config: $ClaudeConfigPath"

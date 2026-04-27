@@ -31,6 +31,7 @@ install.bat
 ```
 
 If Fiji is found automatically, press Enter to accept the detected executable, type `select` to choose a different Fiji executable, or type `cancel` to stop.
+The installer accepts both `ImageJ-win*.exe` and `Fiji-windows*.exe`.
 
 If Fiji is not installed in a standard location, pass the executable path explicitly:
 
@@ -69,6 +70,7 @@ This removes:
 
 - Re-run with `-SkipClaudeConfig`
 - Use the generated `fiji-macro-config-snippet.json` manually
+- If you use the packaged Claude Desktop build, the config may live under `AppData\Local\Packages\...\LocalCache\Roaming\Claude\`
 
 ### The plugin does not appear in Fiji
 
