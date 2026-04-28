@@ -90,7 +90,7 @@ function Format-Json {
 
 function Escape-TomlString {
     param([string]$Value)
-    return ($Value -replace '\\', '\\' -replace '"', '\"')
+    return $Value.Replace('\', '\\').Replace('"', '\"')
 }
 
 function Find-ClaudeConfigPath {
@@ -172,6 +172,7 @@ function Update-CodexConfig {
     $backupPath = Backup-File $ConfigPath
     $begin = "# BEGIN Fiji Macro Bridge"
     $end = "# END Fiji Macro Bridge"
+    $managedPattern = [regex]::Escape($begin) + ".*?" + [regex]::Escape($end) + "(\r?\n)?"
     $block = @"
 $begin
 [mcp_servers.fiji-macro]
@@ -186,12 +187,23 @@ $end
     if (Test-Path $ConfigPath) {
         $existing = Get-Content -Path $ConfigPath -Raw
     }
-    if ($existing -match [regex]::Escape($begin) + ".*?" + [regex]::Escape($end)) {
-        $updated = [regex]::Replace($existing, [regex]::Escape($begin) + ".*?" + [regex]::Escape($end), [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $block }, 'Singleline')
+
+    $withoutManaged = [regex]::Replace(
+        $existing,
+        $managedPattern,
+        "",
+        [System.Text.RegularExpressions.RegexOptions]::Singleline
+    )
+
+    if ($withoutManaged -match '(?m)^\[mcp_servers\.fiji-macro(?:\.env)?\]\s*$') {
+        throw "Codex config already contains a manual fiji-macro entry outside the installer-managed block. Remove that entry or replace it with the generated manual snippet, then run setup again."
+    }
+
+    $base = $withoutManaged.TrimEnd()
+    if ($base) {
+        $updated = $base + "`r`n`r`n" + $block + "`r`n"
     } else {
-        if ($existing -and -not $existing.EndsWith("`n")) { $existing += "`r`n" }
-        if ($existing) { $existing += "`r`n" }
-        $updated = $existing + $block + "`r`n"
+        $updated = $block + "`r`n"
     }
     Write-Utf8NoBom -Path $ConfigPath -Content $updated
     return $backupPath
