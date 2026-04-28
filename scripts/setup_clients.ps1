@@ -16,6 +16,22 @@ try {
     $script:GuiAvailable = $false
 }
 
+function Show-ResultDialog {
+    param(
+        [string]$Title,
+        [string]$Message,
+        [string]$Icon = "Information"
+    )
+
+    if (-not $script:GuiAvailable) {
+        return
+    }
+
+    $buttons = [System.Windows.Forms.MessageBoxButtons]::OK
+    $iconEnum = [System.Windows.Forms.MessageBoxIcon]::$Icon
+    [System.Windows.Forms.MessageBox]::Show($Message, $Title, $buttons, $iconEnum) | Out-Null
+}
+
 function Ensure-ParentDir {
     param([string]$Path)
     $parent = Split-Path -Parent $Path
@@ -181,95 +197,18 @@ $end
     return $backupPath
 }
 
-function Show-AdvancedOptionsDialog {
-    param([string]$ClaudePath, [string]$CodexPath)
-
-    if (-not $script:GuiAvailable) {
-        return [pscustomobject]@{ ClaudePath = $ClaudePath; CodexPath = $CodexPath; Accepted = $true }
-    }
-
-    $form = New-Object System.Windows.Forms.Form
-    $form.Text = "Advanced Config Paths"
-    $form.Size = New-Object System.Drawing.Size(640, 220)
-    $form.StartPosition = "CenterScreen"
-
-    $label1 = New-Object System.Windows.Forms.Label
-    $label1.Text = "Claude Desktop config path"
-    $label1.Location = New-Object System.Drawing.Point(20, 20)
-    $label1.AutoSize = $true
-    $form.Controls.Add($label1)
-
-    $txtClaude = New-Object System.Windows.Forms.TextBox
-    $txtClaude.Location = New-Object System.Drawing.Point(20, 45)
-    $txtClaude.Size = New-Object System.Drawing.Size(500, 23)
-    $txtClaude.Text = $ClaudePath
-    $form.Controls.Add($txtClaude)
-
-    $btnClaude = New-Object System.Windows.Forms.Button
-    $btnClaude.Text = "Browse"
-    $btnClaude.Location = New-Object System.Drawing.Point(530, 43)
-    $btnClaude.Add_Click({
-        $dlg = New-Object System.Windows.Forms.OpenFileDialog
-        $dlg.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*"
-        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $txtClaude.Text = $dlg.FileName }
-    })
-    $form.Controls.Add($btnClaude)
-
-    $label2 = New-Object System.Windows.Forms.Label
-    $label2.Text = "Codex app config path"
-    $label2.Location = New-Object System.Drawing.Point(20, 85)
-    $label2.AutoSize = $true
-    $form.Controls.Add($label2)
-
-    $txtCodex = New-Object System.Windows.Forms.TextBox
-    $txtCodex.Location = New-Object System.Drawing.Point(20, 110)
-    $txtCodex.Size = New-Object System.Drawing.Size(500, 23)
-    $txtCodex.Text = $CodexPath
-    $form.Controls.Add($txtCodex)
-
-    $btnCodex = New-Object System.Windows.Forms.Button
-    $btnCodex.Text = "Browse"
-    $btnCodex.Location = New-Object System.Drawing.Point(530, 108)
-    $btnCodex.Add_Click({
-        $dlg = New-Object System.Windows.Forms.OpenFileDialog
-        $dlg.Filter = "TOML files (*.toml)|*.toml|All files (*.*)|*.*"
-        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $txtCodex.Text = $dlg.FileName }
-    })
-    $form.Controls.Add($btnCodex)
-
-    $result = [pscustomobject]@{ ClaudePath = $ClaudePath; CodexPath = $CodexPath; Accepted = $false }
-
-    $ok = New-Object System.Windows.Forms.Button
-    $ok.Text = "OK"
-    $ok.Location = New-Object System.Drawing.Point(430, 150)
-    $ok.Add_Click({
-        $result.ClaudePath = $txtClaude.Text
-        $result.CodexPath = $txtCodex.Text
-        $result.Accepted = $true
-        $form.Close()
-    })
-    $form.Controls.Add($ok)
-
-    $cancel = New-Object System.Windows.Forms.Button
-    $cancel.Text = "Cancel"
-    $cancel.Location = New-Object System.Drawing.Point(520, 150)
-    $cancel.Add_Click({ $form.Close() })
-    $form.Controls.Add($cancel)
-
-    $form.ShowDialog() | Out-Null
-    return $result
-}
-
 function Show-ClientSelectionDialog {
-    param([string]$ClaudePath, [string]$CodexPath)
+    param([string]$ClaudePath, [string]$CodexPath, [string]$CustomJsonPath)
 
     if (-not $script:GuiAvailable) {
         return [pscustomobject]@{
             Action = "skip"
             ClaudeSelected = $false
             CodexSelected = $false
+            CustomJsonSelected = $false
             ClaudePath = $ClaudePath
             CodexPath = $CodexPath
+            CustomJsonPath = $CustomJsonPath
         }
     }
 
@@ -277,73 +216,94 @@ function Show-ClientSelectionDialog {
         Action = "cancel"
         ClaudeSelected = $false
         CodexSelected = $false
+        CustomJsonSelected = $false
         ClaudePath = $ClaudePath
         CodexPath = $CodexPath
+        CustomJsonPath = $CustomJsonPath
     }
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "Set Up MCP Clients"
-    $form.Size = New-Object System.Drawing.Size(500, 250)
+    $form.Size = New-Object System.Drawing.Size(560, 280)
     $form.StartPosition = "CenterScreen"
 
     $label = New-Object System.Windows.Forms.Label
     $label.Text = "Choose which desktop apps to configure automatically."
     $label.Location = New-Object System.Drawing.Point(20, 20)
-    $label.Size = New-Object System.Drawing.Size(440, 20)
+    $label.Size = New-Object System.Drawing.Size(500, 20)
     $form.Controls.Add($label)
 
     $chkClaude = New-Object System.Windows.Forms.CheckBox
     $chkClaude.Text = "Claude Desktop"
     $chkClaude.Location = New-Object System.Drawing.Point(30, 60)
+    $chkClaude.Size = New-Object System.Drawing.Size(220, 24)
     $chkClaude.Checked = $true
     $form.Controls.Add($chkClaude)
 
     $chkCodex = New-Object System.Windows.Forms.CheckBox
     $chkCodex.Text = "Codex app"
     $chkCodex.Location = New-Object System.Drawing.Point(30, 90)
+    $chkCodex.Size = New-Object System.Drawing.Size(220, 24)
     $form.Controls.Add($chkCodex)
+
+    $chkCustom = New-Object System.Windows.Forms.CheckBox
+    $chkCustom.Text = "Custom JSON config"
+    $chkCustom.Location = New-Object System.Drawing.Point(30, 120)
+    $chkCustom.Size = New-Object System.Drawing.Size(170, 24)
+    $form.Controls.Add($chkCustom)
+
+    $txtCustom = New-Object System.Windows.Forms.TextBox
+    $txtCustom.Location = New-Object System.Drawing.Point(200, 120)
+    $txtCustom.Size = New-Object System.Drawing.Size(250, 23)
+    $txtCustom.Text = $CustomJsonPath
+    $form.Controls.Add($txtCustom)
+
+    $btnCustom = New-Object System.Windows.Forms.Button
+    $btnCustom.Text = "Browse..."
+    $btnCustom.Location = New-Object System.Drawing.Point(460, 118)
+    $btnCustom.Size = New-Object System.Drawing.Size(75, 26)
+    $btnCustom.Add_Click({
+        $dlg = New-Object System.Windows.Forms.OpenFileDialog
+        $dlg.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*"
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $txtCustom.Text = $dlg.FileName
+            $chkCustom.Checked = $true
+        }
+    })
+    $form.Controls.Add($btnCustom)
 
     $info = New-Object System.Windows.Forms.Label
     $info.Text = "Skip leaves configs untouched and writes copy-paste snippets with the detected FIJI_PATH."
-    $info.Location = New-Object System.Drawing.Point(20, 130)
-    $info.Size = New-Object System.Drawing.Size(440, 35)
+    $info.Location = New-Object System.Drawing.Point(20, 160)
+    $info.Size = New-Object System.Drawing.Size(510, 36)
     $form.Controls.Add($info)
-
-    $advanced = New-Object System.Windows.Forms.Button
-    $advanced.Text = "Advanced Options"
-    $advanced.Location = New-Object System.Drawing.Point(20, 175)
-    $advanced.Add_Click({
-        $advancedResult = Show-AdvancedOptionsDialog -ClaudePath $result.ClaudePath -CodexPath $result.CodexPath
-        if ($advancedResult.Accepted) {
-            $result.ClaudePath = $advancedResult.ClaudePath
-            $result.CodexPath = $advancedResult.CodexPath
-        }
-    })
-    $form.Controls.Add($advanced)
 
     $ok = New-Object System.Windows.Forms.Button
     $ok.Text = "OK"
-    $ok.Location = New-Object System.Drawing.Point(220, 175)
+    $ok.Location = New-Object System.Drawing.Point(295, 210)
     $ok.Add_Click({
         $result.Action = "ok"
         $result.ClaudeSelected = $chkClaude.Checked
         $result.CodexSelected = $chkCodex.Checked
+        $result.CustomJsonSelected = $chkCustom.Checked
+        $result.CustomJsonPath = $txtCustom.Text
         $form.Close()
     })
     $form.Controls.Add($ok)
 
     $skip = New-Object System.Windows.Forms.Button
     $skip.Text = "Skip"
-    $skip.Location = New-Object System.Drawing.Point(300, 175)
+    $skip.Location = New-Object System.Drawing.Point(375, 210)
     $skip.Add_Click({
         $result.Action = "skip"
+        $result.CustomJsonPath = $txtCustom.Text
         $form.Close()
     })
     $form.Controls.Add($skip)
 
     $cancel = New-Object System.Windows.Forms.Button
     $cancel.Text = "Cancel"
-    $cancel.Location = New-Object System.Drawing.Point(380, 175)
+    $cancel.Location = New-Object System.Drawing.Point(455, 210)
     $cancel.Add_Click({
         $result.Action = "cancel"
         $form.Close()
@@ -392,75 +352,108 @@ if (-not $BundleDir) { throw "BundleDir is required." }
 if (-not $FijiPath) { throw "FijiPath is required." }
 if (-not $ServerExePath) { throw "ServerExePath is required." }
 if (-not $ManifestPath) { throw "ManifestPath is required." }
+try {
+    $resolvedBundleDir = (Resolve-Path $BundleDir).Path
+    $resolvedFijiPath = (Resolve-Path $FijiPath).Path
+    $resolvedServerExe = (Resolve-Path $ServerExePath).Path
 
-$resolvedBundleDir = (Resolve-Path $BundleDir).Path
-$resolvedFijiPath = (Resolve-Path $FijiPath).Path
-$resolvedServerExe = (Resolve-Path $ServerExePath).Path
-
-$manifest = Load-Manifest $ManifestPath
-if (-not $manifest.ContainsKey("configured_clients")) {
-    $manifest["configured_clients"] = [System.Collections.ArrayList]@()
-}
-$configuredClients = [System.Collections.ArrayList]@()
-foreach ($item in @($manifest["configured_clients"])) {
-    [void]$configuredClients.Add($item)
-}
-
-$claudePath = Find-ClaudeConfigPath
-$codexPath = Find-CodexConfigPath
-$selection = Show-ClientSelectionDialog -ClaudePath $claudePath -CodexPath $codexPath
-
-if ($selection.Action -eq "cancel") {
-    throw "Client setup cancelled."
-}
-
-$claudeSnippetPath = Join-Path $resolvedBundleDir "manual-setup-claude-desktop.json"
-$codexSnippetPath = Join-Path $resolvedBundleDir "manual-setup-codex-app.toml"
-Write-ClaudeSnippet -Path $claudeSnippetPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
-Write-CodexSnippet -Path $codexSnippetPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
-
-$configuredNow = @()
-
-if ($selection.Action -eq "ok") {
-    if ($selection.ClaudeSelected) {
-        $backup = Update-ClaudeConfig -ConfigPath $selection.ClaudePath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
-        $entry = [ordered]@{
-            name = "claude-desktop"
-            format = "json"
-            path = $selection.ClaudePath
-            backup_path = $backup
-            managed_key = "mcpServers.fiji-macro"
-        }
-        Upsert-ConfiguredClient -ConfiguredClients $configuredClients -Entry $entry
-        $configuredNow += "Claude Desktop"
+    $manifest = Load-Manifest $ManifestPath
+    if (-not $manifest.Contains("configured_clients")) {
+        $manifest["configured_clients"] = [System.Collections.ArrayList]@()
     }
-    if ($selection.CodexSelected) {
-        $backup = Update-CodexConfig -ConfigPath $selection.CodexPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
-        $entry = [ordered]@{
-            name = "codex-app"
-            format = "toml"
-            path = $selection.CodexPath
-            backup_path = $backup
-            managed_block = "Fiji Macro Bridge"
-        }
-        Upsert-ConfiguredClient -ConfiguredClients $configuredClients -Entry $entry
-        $configuredNow += "Codex app"
+    $configuredClients = [System.Collections.ArrayList]@()
+    foreach ($item in @($manifest["configured_clients"])) {
+        [void]$configuredClients.Add($item)
     }
-}
 
-$manifest["configured_clients"] = $configuredClients
-$manifest["manual_setup_files"] = @(
-    [ordered]@{ client = "claude-desktop"; path = $claudeSnippetPath },
-    [ordered]@{ client = "codex-app"; path = $codexSnippetPath }
-)
-Save-Manifest -Path $ManifestPath -Manifest $manifest
+    $claudePath = Find-ClaudeConfigPath
+    $codexPath = Find-CodexConfigPath
+    $customJsonPath = Join-Path $resolvedBundleDir "custom-mcp-config.json"
+    $selection = Show-ClientSelectionDialog -ClaudePath $claudePath -CodexPath $codexPath -CustomJsonPath $customJsonPath
 
-Write-Host ""
-if ($configuredNow.Count -gt 0) {
-    Write-Host ("Configured clients: " + ($configuredNow -join ", "))
-} else {
-    Write-Host "No client configs were modified."
+    if ($selection.Action -eq "cancel") {
+        throw "Client setup cancelled."
+    }
+
+    $claudeSnippetPath = Join-Path $resolvedBundleDir "manual-setup-claude-desktop.json"
+    $codexSnippetPath = Join-Path $resolvedBundleDir "manual-setup-codex-app.toml"
+    $customJsonSnippetPath = Join-Path $resolvedBundleDir "manual-setup-custom-json.json"
+    Write-ClaudeSnippet -Path $claudeSnippetPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
+    Write-CodexSnippet -Path $codexSnippetPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
+    Write-ClaudeSnippet -Path $customJsonSnippetPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
+
+    $configuredNow = @()
+
+    if ($selection.Action -eq "ok") {
+        if ($selection.ClaudeSelected) {
+            $backup = Update-ClaudeConfig -ConfigPath $selection.ClaudePath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
+            $entry = [ordered]@{
+                name = "claude-desktop"
+                format = "json"
+                path = $selection.ClaudePath
+                backup_path = $backup
+                managed_key = "mcpServers.fiji-macro"
+            }
+            Upsert-ConfiguredClient -ConfiguredClients $configuredClients -Entry $entry
+            $configuredNow += "Claude Desktop"
+        }
+        if ($selection.CodexSelected) {
+            $backup = Update-CodexConfig -ConfigPath $selection.CodexPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
+            $entry = [ordered]@{
+                name = "codex-app"
+                format = "toml"
+                path = $selection.CodexPath
+                backup_path = $backup
+                managed_block = "Fiji Macro Bridge"
+            }
+            Upsert-ConfiguredClient -ConfiguredClients $configuredClients -Entry $entry
+            $configuredNow += "Codex app"
+        }
+        if ($selection.CustomJsonSelected) {
+            $backup = Update-ClaudeConfig -ConfigPath $selection.CustomJsonPath -ExePath $resolvedServerExe -ResolvedFijiPath $resolvedFijiPath
+            $entry = [ordered]@{
+                name = "custom-json"
+                format = "json"
+                path = $selection.CustomJsonPath
+                backup_path = $backup
+                managed_key = "mcpServers.fiji-macro"
+            }
+            Upsert-ConfiguredClient -ConfiguredClients $configuredClients -Entry $entry
+            $configuredNow += "Custom JSON config"
+        }
+    }
+
+    $manifest["configured_clients"] = $configuredClients
+    $manifest["manual_setup_files"] = @(
+        [ordered]@{ client = "claude-desktop"; path = $claudeSnippetPath },
+        [ordered]@{ client = "codex-app"; path = $codexSnippetPath },
+        [ordered]@{ client = "custom-json"; path = $customJsonSnippetPath }
+    )
+    Save-Manifest -Path $ManifestPath -Manifest $manifest
+
+    Write-Host ""
+    if ($configuredNow.Count -gt 0) {
+        Write-Host ("Configured clients: " + ($configuredNow -join ", "))
+    } else {
+        Write-Host "No client configs were modified."
+    }
+    Write-Host "Manual setup snippets:"
+    Write-Host "  Claude Desktop: $claudeSnippetPath"
+    Write-Host "  Codex app:      $codexSnippetPath"
+    Write-Host "  Custom JSON:    $customJsonSnippetPath"
+
+    $summary = if ($configuredNow.Count -gt 0) {
+        "Configured: " + ($configuredNow -join ", ") + "`n`n"
+    } else {
+        "No client configs were modified.`n`n"
+    }
+    $summary += "Manual setup snippets:`n"
+    $summary += "Claude Desktop: $claudeSnippetPath`n"
+    $summary += "Codex app: $codexSnippetPath`n"
+    $summary += "Custom JSON: $customJsonSnippetPath"
+    Show-ResultDialog -Title "Client Setup Complete" -Message $summary -Icon "Information"
 }
-Write-Host "Manual setup snippets:"
-Write-Host "  Claude Desktop: $claudeSnippetPath"
-Write-Host "  Codex app:      $codexSnippetPath"
+catch {
+    Show-ResultDialog -Title "Client Setup Failed" -Message $_.Exception.Message -Icon "Error"
+    throw
+}

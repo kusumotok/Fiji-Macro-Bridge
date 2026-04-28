@@ -19,6 +19,77 @@ function Write-Utf8NoBom {
     [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
 }
 
+function ConvertTo-Json2 {
+    param([Parameter(ValueFromPipeline)][object]$InputObject, [int]$Depth = 10)
+    process {
+        $compressed = $InputObject | ConvertTo-Json -Depth $Depth -Compress
+        Format-Json $compressed
+    }
+}
+
+function Format-Json {
+    param([string]$Json, [int]$IndentSize = 2)
+
+    $indent = 0
+    $sb = [System.Text.StringBuilder]::new()
+    $inString = $false
+    $escape = $false
+
+    foreach ($ch in $Json.ToCharArray()) {
+        if ($escape) {
+            $sb.Append($ch) | Out-Null
+            $escape = $false
+            continue
+        }
+        if ($ch -eq '\' -and $inString) {
+            $sb.Append($ch) | Out-Null
+            $escape = $true
+            continue
+        }
+        if ($ch -eq '"') { $inString = -not $inString }
+        if ($inString) {
+            $sb.Append($ch) | Out-Null
+            continue
+        }
+        switch ($ch) {
+            '{' {
+                $sb.Append($ch) | Out-Null
+                $indent++
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+            }
+            '[' {
+                $sb.Append($ch) | Out-Null
+                $indent++
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+            }
+            '}' {
+                $indent--
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+                $sb.Append($ch) | Out-Null
+            }
+            ']' {
+                $indent--
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+                $sb.Append($ch) | Out-Null
+            }
+            ',' {
+                $sb.Append($ch) | Out-Null
+                $sb.Append("`n" + (' ' * ($indent * $IndentSize))) | Out-Null
+            }
+            ':' {
+                $sb.Append(': ') | Out-Null
+            }
+            default {
+                if ($ch -ne ' ') {
+                    $sb.Append($ch) | Out-Null
+                }
+            }
+        }
+    }
+
+    $sb.ToString()
+}
+
 function Invoke-DeferredCleanup {
     param([string]$TargetDir)
 
@@ -65,7 +136,7 @@ function Remove-ClaudeServerEntry {
     }
 
     $config.mcpServers.PSObject.Properties.Remove("fiji-macro")
-    $json = $config | ConvertTo-Json -Depth 20
+    $json = $config | ConvertTo-Json2 -Depth 20
     Write-Utf8NoBom -Path $ConfigPath -Content $json
 }
 
@@ -90,6 +161,8 @@ function Remove-CodexManagedBlock {
 if ($manifest.configured_clients) {
     foreach ($client in $manifest.configured_clients) {
         if ($client.name -eq "claude-desktop") {
+            Remove-ClaudeServerEntry -ConfigPath $client.path
+        } elseif ($client.name -eq "custom-json") {
             Remove-ClaudeServerEntry -ConfigPath $client.path
         } elseif ($client.name -eq "codex-app") {
             Remove-CodexManagedBlock -ConfigPath $client.path

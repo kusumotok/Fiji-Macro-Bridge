@@ -21,11 +21,12 @@ The installer will:
 
 1. Copy `fiji-mcp-server.exe` into `%LOCALAPPDATA%\FijiMacroBridge\`
 2. Copy `Fiji_Macro_Bridge.jar` into Fiji's `plugins` directory
-3. Run `setup_clients` to configure Claude Desktop and/or Codex app
+3. Run `setup_clients` to configure Claude Desktop, Codex app, and/or one custom JSON-based MCP config
 4. Generate copy-paste snippets for manual setup, including the detected `FIJI_PATH`
 5. If Fiji is auto-detected, show the detected path and let you accept it or choose another executable
 6. Install an uninstaller into `%LOCALAPPDATA%\FijiMacroBridge\`
 7. Run a small smoke test that validates installed files and manifest data
+8. Show a final dialog that summarizes which client configs were updated, or the error if setup failed
 
 ## Run it
 
@@ -49,6 +50,11 @@ If you do not want the script to edit Claude Desktop config automatically:
 ```bat
 Use the `Skip` button in the client setup dialog. The installer will still generate manual setup snippets.
 ```
+
+At the end of client setup, a dialog reports either:
+
+- which client configs were updated and where the manual snippets were written
+- or the specific error that stopped setup
 
 ## Uninstall
 
@@ -82,6 +88,11 @@ This removes:
 
 - Use the generated `manual-setup-codex-app.toml` manually
 - The default config path is `%USERPROFILE%\.codex\config.toml`
+
+### Another JSON-based client should be configured instead
+
+- Select `Custom JSON config` in the client setup dialog and use the `Browse...` button to choose the target file
+- Or use the generated `manual-setup-custom-json.json` manually
 
 ### The plugin does not appear in Fiji
 

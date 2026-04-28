@@ -12,6 +12,22 @@ try {
     $script:GuiAvailable = $false
 }
 
+function Show-ResultDialog {
+    param(
+        [string]$Title,
+        [string]$Message,
+        [string]$Icon = "Information"
+    )
+
+    if (-not $script:GuiAvailable) {
+        return
+    }
+
+    $buttons = [System.Windows.Forms.MessageBoxButtons]::OK
+    $iconEnum = [System.Windows.Forms.MessageBoxIcon]::$Icon
+    [System.Windows.Forms.MessageBox]::Show($Message, $Title, $buttons, $iconEnum) | Out-Null
+}
+
 function Resolve-BundleDir {
     param([string]$InputPath)
 
@@ -189,110 +205,116 @@ function Test-JsonFile {
     $null = $raw | ConvertFrom-Json
 }
 
-$resolvedBundleDir = Resolve-BundleDir $BundleDir
+try {
+    $resolvedBundleDir = Resolve-BundleDir $BundleDir
 
-$bundledServerExe = Join-Path $resolvedBundleDir "fiji-mcp-server.exe"
-if (-not (Test-Path $bundledServerExe)) {
-    throw "Bundled MCP server executable not found: $bundledServerExe"
-}
-$bundledServerExe = (Resolve-Path $bundledServerExe).Path
-
-$jarPath = Join-Path $resolvedBundleDir "Fiji_Macro_Bridge.jar"
-if (-not (Test-Path $jarPath)) {
-    throw "Bundled Fiji plugin JAR not found: $jarPath"
-}
-$jarPath = (Resolve-Path $jarPath).Path
-
-if (-not $FijiPath) {
-    $FijiPath = Find-FijiPath
-    $FijiPath = Confirm-Or-SelectFijiPath $FijiPath
-}
-if (-not $FijiPath) {
-    throw "Fiji executable not found automatically. Re-run with -FijiPath <path-to-ImageJ-win64.exe>."
-}
-if (-not (Test-Path $FijiPath)) {
-    throw "Configured Fiji executable does not exist: $FijiPath"
-}
-$FijiPath = (Resolve-Path $FijiPath).Path
-
-$fijiRoot = Split-Path -Parent $FijiPath
-$pluginsDir = Join-Path $fijiRoot "plugins"
-if (-not (Test-Path $pluginsDir)) {
-    throw "Fiji plugins directory not found: $pluginsDir"
-}
-
-$installRoot = Join-Path $env:LOCALAPPDATA "FijiMacroBridge"
-if (-not (Test-Path $installRoot)) {
-    New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-}
-
-$installedExe = Join-Path $installRoot "fiji-mcp-server.exe"
-$exeAlreadyPresent = Test-Path $installedExe
-Copy-Item -Path $bundledServerExe -Destination $installedExe -Force
-
-$installedJar = Join-Path $pluginsDir "Fiji_Macro_Bridge.jar"
-$jarAlreadyPresent = Test-Path $installedJar
-Copy-Item -Path $jarPath -Destination $installedJar -Force
-
-$uninstallPs1Source = Join-Path $resolvedBundleDir "uninstall_windows.ps1"
-$uninstallBatSource = Join-Path $resolvedBundleDir "uninstall.bat"
- $setupPs1Source = Join-Path $resolvedBundleDir "setup_clients.ps1"
- $setupBatSource = Join-Path $resolvedBundleDir "setup_clients.bat"
-if (Test-Path $uninstallPs1Source) {
-    Copy-Item -Path $uninstallPs1Source -Destination (Join-Path $installRoot "uninstall_windows.ps1") -Force
-}
-if (Test-Path $uninstallBatSource) {
-    Copy-Item -Path $uninstallBatSource -Destination (Join-Path $installRoot "uninstall.bat") -Force
-}
-if (Test-Path $setupPs1Source) {
-    Copy-Item -Path $setupPs1Source -Destination (Join-Path $installRoot "setup_clients.ps1") -Force
-}
-if (Test-Path $setupBatSource) {
-    Copy-Item -Path $setupBatSource -Destination (Join-Path $installRoot "setup_clients.bat") -Force
-}
-
-$manifest = [ordered]@{
-    install_root = $installRoot
-    installed_exe = $installedExe
-    installed_jar = $installedJar
-    fiji_path = $FijiPath
-    configured_clients = @()
-}
-$manifestJson = $manifest | ConvertTo-Json2 -Depth 10
-$manifestPath = Join-Path $installRoot "install_manifest.json"
-Write-Utf8NoBom -Path $manifestPath -Content $manifestJson
-Test-JsonFile $manifestPath
-
-if (-not (Test-Path $installedExe)) {
-    throw "Installed MCP server executable is missing: $installedExe"
-}
-if (-not (Test-Path $installedJar)) {
-    throw "Installed plugin JAR is missing: $installedJar"
-}
-
-$setupScriptPath = Join-Path $installRoot "setup_clients.ps1"
-if (Test-Path $setupScriptPath) {
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath `
-        -InstallRoot $installRoot `
-        -BundleDir $resolvedBundleDir `
-        -FijiPath $FijiPath `
-        -ServerExePath $installedExe `
-        -ManifestPath $manifestPath
-    if ($LASTEXITCODE -ne 0) {
-        throw "Client setup failed."
+    $bundledServerExe = Join-Path $resolvedBundleDir "fiji-mcp-server.exe"
+    if (-not (Test-Path $bundledServerExe)) {
+        throw "Bundled MCP server executable not found: $bundledServerExe"
     }
-}
+    $bundledServerExe = (Resolve-Path $bundledServerExe).Path
 
-Write-Host ""
-if ($exeAlreadyPresent -or $jarAlreadyPresent) {
-    Write-Host "Updated existing Fiji Macro Bridge installation."
-} else {
-    Write-Host "Installed Fiji Macro Bridge."
+    $jarPath = Join-Path $resolvedBundleDir "Fiji_Macro_Bridge.jar"
+    if (-not (Test-Path $jarPath)) {
+        throw "Bundled Fiji plugin JAR not found: $jarPath"
+    }
+    $jarPath = (Resolve-Path $jarPath).Path
+
+    if (-not $FijiPath) {
+        $FijiPath = Find-FijiPath
+        $FijiPath = Confirm-Or-SelectFijiPath $FijiPath
+    }
+    if (-not $FijiPath) {
+        throw "Fiji executable not found automatically. Re-run with -FijiPath <path-to-ImageJ-win64.exe>."
+    }
+    if (-not (Test-Path $FijiPath)) {
+        throw "Configured Fiji executable does not exist: $FijiPath"
+    }
+    $FijiPath = (Resolve-Path $FijiPath).Path
+
+    $fijiRoot = Split-Path -Parent $FijiPath
+    $pluginsDir = Join-Path $fijiRoot "plugins"
+    if (-not (Test-Path $pluginsDir)) {
+        throw "Fiji plugins directory not found: $pluginsDir"
+    }
+
+    $installRoot = Join-Path $env:LOCALAPPDATA "FijiMacroBridge"
+    if (-not (Test-Path $installRoot)) {
+        New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
+    }
+
+    $installedExe = Join-Path $installRoot "fiji-mcp-server.exe"
+    $exeAlreadyPresent = Test-Path $installedExe
+    Copy-Item -Path $bundledServerExe -Destination $installedExe -Force
+
+    $installedJar = Join-Path $pluginsDir "Fiji_Macro_Bridge.jar"
+    $jarAlreadyPresent = Test-Path $installedJar
+    Copy-Item -Path $jarPath -Destination $installedJar -Force
+
+    $uninstallPs1Source = Join-Path $resolvedBundleDir "uninstall_windows.ps1"
+    $uninstallBatSource = Join-Path $resolvedBundleDir "uninstall.bat"
+    $setupPs1Source = Join-Path $resolvedBundleDir "setup_clients.ps1"
+    $setupBatSource = Join-Path $resolvedBundleDir "setup_clients.bat"
+    if (Test-Path $uninstallPs1Source) {
+        Copy-Item -Path $uninstallPs1Source -Destination (Join-Path $installRoot "uninstall_windows.ps1") -Force
+    }
+    if (Test-Path $uninstallBatSource) {
+        Copy-Item -Path $uninstallBatSource -Destination (Join-Path $installRoot "uninstall.bat") -Force
+    }
+    if (Test-Path $setupPs1Source) {
+        Copy-Item -Path $setupPs1Source -Destination (Join-Path $installRoot "setup_clients.ps1") -Force
+    }
+    if (Test-Path $setupBatSource) {
+        Copy-Item -Path $setupBatSource -Destination (Join-Path $installRoot "setup_clients.bat") -Force
+    }
+
+    $manifest = [ordered]@{
+        install_root = $installRoot
+        installed_exe = $installedExe
+        installed_jar = $installedJar
+        fiji_path = $FijiPath
+        configured_clients = @()
+    }
+    $manifestJson = $manifest | ConvertTo-Json2 -Depth 10
+    $manifestPath = Join-Path $installRoot "install_manifest.json"
+    Write-Utf8NoBom -Path $manifestPath -Content $manifestJson
+    Test-JsonFile $manifestPath
+
+    if (-not (Test-Path $installedExe)) {
+        throw "Installed MCP server executable is missing: $installedExe"
+    }
+    if (-not (Test-Path $installedJar)) {
+        throw "Installed plugin JAR is missing: $installedJar"
+    }
+
+    $setupScriptPath = Join-Path $installRoot "setup_clients.ps1"
+    if (Test-Path $setupScriptPath) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath `
+            -InstallRoot $installRoot `
+            -BundleDir $resolvedBundleDir `
+            -FijiPath $FijiPath `
+            -ServerExePath $installedExe `
+            -ManifestPath $manifestPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Client setup failed."
+        }
+    }
+
+    Write-Host ""
+    if ($exeAlreadyPresent -or $jarAlreadyPresent) {
+        Write-Host "Updated existing Fiji Macro Bridge installation."
+    } else {
+        Write-Host "Installed Fiji Macro Bridge."
+    }
+    Write-Host "MCP server path: $installedExe"
+    Write-Host "Plugin JAR path: $installedJar"
+    Write-Host "Client setup helper: $(Join-Path $installRoot 'setup_clients.bat')"
+    Write-Host "Uninstaller location: $(Join-Path $installRoot 'uninstall.bat')"
+    Write-Host "Smoke test: installed files and base manifest parsed successfully."
+    Write-Host ""
+    Write-Host "Restart your MCP client after installation."
 }
-Write-Host "MCP server path: $installedExe"
-Write-Host "Plugin JAR path: $installedJar"
-Write-Host "Client setup helper: $(Join-Path $installRoot 'setup_clients.bat')"
-Write-Host "Uninstaller location: $(Join-Path $installRoot 'uninstall.bat')"
-Write-Host "Smoke test: installed files and base manifest parsed successfully."
-Write-Host ""
-Write-Host "Restart your MCP client after installation."
+catch {
+    Show-ResultDialog -Title "Installation Failed" -Message $_.Exception.Message -Icon "Error"
+    throw
+}
