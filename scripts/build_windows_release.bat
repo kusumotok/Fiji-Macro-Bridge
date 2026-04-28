@@ -11,11 +11,14 @@ set VENV_DIR=.venv-release
 set RELEASE_DIR=release\windows-x64
 set RELEASE_ZIP=release\fiji-macro-bridge-windows-x64.zip
 set DIST_EXE=dist\fiji-mcp-server.exe
-set JAR_FILE=plugin\target\fiji-macro-bridge-1.0.0.jar
+set JAR_FILE=plugin\target\Fiji_Macro_Bridge.jar
 set SERVER_DIR=server
+set PYTHON_LAUNCHER=py -3.11
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 
 if not exist "%VENV_DIR%\Scripts\python.exe" (
-    py -3 -m venv "%VENV_DIR%" || goto :fail
+    %PYTHON_LAUNCHER% -m venv "%VENV_DIR%" || goto :fail
 )
 
 call "%VENV_DIR%\Scripts\activate.bat" || goto :fail
@@ -51,9 +54,11 @@ if not exist "%JAR_FILE%" (
 
 mkdir "%RELEASE_DIR%" || goto :fail
 copy /y "%DIST_EXE%" "%RELEASE_DIR%\fiji-mcp-server.exe" >nul || goto :fail
-copy /y "%JAR_FILE%" "%RELEASE_DIR%\fiji-macro-bridge-1.0.0.jar" >nul || goto :fail
+copy /y "%JAR_FILE%" "%RELEASE_DIR%\Fiji_Macro_Bridge.jar" >nul || goto :fail
 copy /y "scripts\install_windows.ps1" "%RELEASE_DIR%\install_windows.ps1" >nul || goto :fail
 copy /y "scripts\install_windows.bat" "%RELEASE_DIR%\install.bat" >nul || goto :fail
+copy /y "scripts\setup_clients.ps1" "%RELEASE_DIR%\setup_clients.ps1" >nul || goto :fail
+copy /y "scripts\setup_clients.bat" "%RELEASE_DIR%\setup_clients.bat" >nul || goto :fail
 copy /y "scripts\uninstall_windows.ps1" "%RELEASE_DIR%\uninstall_windows.ps1" >nul || goto :fail
 copy /y "scripts\uninstall_windows.bat" "%RELEASE_DIR%\uninstall.bat" >nul || goto :fail
 copy /y "LICENSE" "%RELEASE_DIR%\LICENSE.txt" >nul || goto :fail

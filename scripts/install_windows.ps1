@@ -1,8 +1,6 @@
 param(
     [string]$BundleDir = "",
-    [string]$FijiPath = "",
-    [string]$ClaudeConfigPath = "",
-    [switch]$SkipClaudeConfig
+    [string]$FijiPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -176,104 +174,19 @@ function Format-Json {
     $sb.ToString()
 }
 
-function Write-ConfigSnippet {
-    param(
-        [string]$OutputPath,
-        [string]$ExePath,
-        [string]$ResolvedFijiPath
-    )
+function Test-JsonFile {
+    param([string]$Path)
 
-    $snippet = [ordered]@{
-        mcpServers = [ordered]@{
-            "fiji-macro" = [ordered]@{
-                command = $ExePath
-                env = [ordered]@{
-                    FIJI_PATH = $ResolvedFijiPath
-                    FIJI_PORT = "5048"
-                }
-            }
-        }
+    if (-not (Test-Path $Path)) {
+        throw "Expected JSON file was not created: $Path"
     }
 
-    $json = $snippet | ConvertTo-Json2 -Depth 10
-    Write-Utf8NoBom -Path $OutputPath -Content $json
-}
-
-function Remove-ClaudeServerEntry {
-    param([string]$ConfigPath)
-
-    if (-not (Test-Path $ConfigPath)) {
-        return
-    }
-
-    $raw = Get-Content -Path $ConfigPath -Raw
+    $raw = Get-Content -Path $Path -Raw
     if ([string]::IsNullOrWhiteSpace($raw)) {
-        return
+        throw "JSON file is empty: $Path"
     }
 
-    $config = $raw | ConvertFrom-Json
-    if (-not ($config.PSObject.Properties.Name -contains "mcpServers")) {
-        return
-    }
-    if (-not ($config.mcpServers.PSObject.Properties.Name -contains "fiji-macro")) {
-        return
-    }
-
-    $config.mcpServers.PSObject.Properties.Remove("fiji-macro")
-    $json = $config | ConvertTo-Json2 -Depth 20
-    Write-Utf8NoBom -Path $ConfigPath -Content $json
-}
-
-function Find-ClaudeConfigPath {
-    $candidates = @(
-        (Join-Path $env:APPDATA "Claude\claude_desktop_config.json"),
-        (Join-Path $env:LOCALAPPDATA "Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json")
-    )
-
-    foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path $candidate)) {
-            return (Resolve-Path $candidate).Path
-        }
-    }
-
-    return $candidates[0]
-}
-
-function Update-ClaudeConfig {
-    param(
-        [string]$ConfigPath,
-        [string]$ExePath,
-        [string]$ResolvedFijiPath
-    )
-
-    Ensure-ParentDir $ConfigPath
-
-    if (Test-Path $ConfigPath) {
-        $raw = Get-Content -Path $ConfigPath -Raw
-        if ([string]::IsNullOrWhiteSpace($raw)) {
-            $config = [pscustomobject]@{}
-        } else {
-            $config = $raw | ConvertFrom-Json
-        }
-    } else {
-        $config = [pscustomobject]@{}
-    }
-
-    if (-not ($config.PSObject.Properties.Name -contains "mcpServers")) {
-        $config | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([pscustomobject]@{})
-    }
-
-    $serverEntry = [pscustomobject]@{
-        command = $ExePath
-        env = [pscustomobject]@{
-            FIJI_PATH = $ResolvedFijiPath
-            FIJI_PORT = "5048"
-        }
-    }
-    $config.mcpServers | Add-Member -MemberType NoteProperty -Name "fiji-macro" -Value $serverEntry -Force
-
-    $json = $config | ConvertTo-Json2 -Depth 20
-    Write-Utf8NoBom -Path $ConfigPath -Content $json
+    $null = $raw | ConvertFrom-Json
 }
 
 $resolvedBundleDir = Resolve-BundleDir $BundleDir
@@ -284,7 +197,7 @@ if (-not (Test-Path $bundledServerExe)) {
 }
 $bundledServerExe = (Resolve-Path $bundledServerExe).Path
 
-$jarPath = Join-Path $resolvedBundleDir "fiji-macro-bridge-1.0.0.jar"
+$jarPath = Join-Path $resolvedBundleDir "Fiji_Macro_Bridge.jar"
 if (-not (Test-Path $jarPath)) {
     throw "Bundled Fiji plugin JAR not found: $jarPath"
 }
@@ -317,27 +230,25 @@ $installedExe = Join-Path $installRoot "fiji-mcp-server.exe"
 $exeAlreadyPresent = Test-Path $installedExe
 Copy-Item -Path $bundledServerExe -Destination $installedExe -Force
 
-$installedJar = Join-Path $pluginsDir "fiji-macro-bridge-1.0.0.jar"
+$installedJar = Join-Path $pluginsDir "Fiji_Macro_Bridge.jar"
 $jarAlreadyPresent = Test-Path $installedJar
 Copy-Item -Path $jarPath -Destination $installedJar -Force
 
-$snippetPath = Join-Path $resolvedBundleDir "fiji-macro-config-snippet.json"
-Write-ConfigSnippet -OutputPath $snippetPath -ExePath $installedExe -ResolvedFijiPath $FijiPath
-
-if (-not $SkipClaudeConfig) {
-    if (-not $ClaudeConfigPath) {
-        $ClaudeConfigPath = Find-ClaudeConfigPath
-    }
-    Update-ClaudeConfig -ConfigPath $ClaudeConfigPath -ExePath $installedExe -ResolvedFijiPath $FijiPath
-}
-
 $uninstallPs1Source = Join-Path $resolvedBundleDir "uninstall_windows.ps1"
 $uninstallBatSource = Join-Path $resolvedBundleDir "uninstall.bat"
+ $setupPs1Source = Join-Path $resolvedBundleDir "setup_clients.ps1"
+ $setupBatSource = Join-Path $resolvedBundleDir "setup_clients.bat"
 if (Test-Path $uninstallPs1Source) {
     Copy-Item -Path $uninstallPs1Source -Destination (Join-Path $installRoot "uninstall_windows.ps1") -Force
 }
 if (Test-Path $uninstallBatSource) {
     Copy-Item -Path $uninstallBatSource -Destination (Join-Path $installRoot "uninstall.bat") -Force
+}
+if (Test-Path $setupPs1Source) {
+    Copy-Item -Path $setupPs1Source -Destination (Join-Path $installRoot "setup_clients.ps1") -Force
+}
+if (Test-Path $setupBatSource) {
+    Copy-Item -Path $setupBatSource -Destination (Join-Path $installRoot "setup_clients.bat") -Force
 }
 
 $manifest = [ordered]@{
@@ -345,11 +256,32 @@ $manifest = [ordered]@{
     installed_exe = $installedExe
     installed_jar = $installedJar
     fiji_path = $FijiPath
-    claude_config_path = $ClaudeConfigPath
-    claude_config_updated = (-not $SkipClaudeConfig)
+    configured_clients = @()
 }
 $manifestJson = $manifest | ConvertTo-Json2 -Depth 10
-Write-Utf8NoBom -Path (Join-Path $installRoot "install_manifest.json") -Content $manifestJson
+$manifestPath = Join-Path $installRoot "install_manifest.json"
+Write-Utf8NoBom -Path $manifestPath -Content $manifestJson
+Test-JsonFile $manifestPath
+
+if (-not (Test-Path $installedExe)) {
+    throw "Installed MCP server executable is missing: $installedExe"
+}
+if (-not (Test-Path $installedJar)) {
+    throw "Installed plugin JAR is missing: $installedJar"
+}
+
+$setupScriptPath = Join-Path $installRoot "setup_clients.ps1"
+if (Test-Path $setupScriptPath) {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath `
+        -InstallRoot $installRoot `
+        -BundleDir $resolvedBundleDir `
+        -FijiPath $FijiPath `
+        -ServerExePath $installedExe `
+        -ManifestPath $manifestPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Client setup failed."
+    }
+}
 
 Write-Host ""
 if ($exeAlreadyPresent -or $jarAlreadyPresent) {
@@ -359,12 +291,8 @@ if ($exeAlreadyPresent -or $jarAlreadyPresent) {
 }
 Write-Host "MCP server path: $installedExe"
 Write-Host "Plugin JAR path: $installedJar"
-Write-Host "Generated MCP config snippet: $snippetPath"
-if (-not $SkipClaudeConfig) {
-    Write-Host "Updated Claude Desktop config: $ClaudeConfigPath"
-} else {
-    Write-Host "Skipped Claude Desktop config update."
-}
+Write-Host "Client setup helper: $(Join-Path $installRoot 'setup_clients.bat')"
 Write-Host "Uninstaller location: $(Join-Path $installRoot 'uninstall.bat')"
+Write-Host "Smoke test: installed files and base manifest parsed successfully."
 Write-Host ""
 Write-Host "Restart your MCP client after installation."

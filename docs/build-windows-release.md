@@ -7,9 +7,11 @@ This document is for maintainers preparing a Windows release bundle.
 Produce a release directory containing:
 
 - `fiji-mcp-server.exe`
-- `fiji-macro-bridge-1.0.0.jar`
+- `Fiji_Macro_Bridge.jar`
 - `install_windows.ps1`
 - `install.bat`
+- `setup_clients.ps1`
+- `setup_clients.bat`
 - `uninstall_windows.ps1`
 - `uninstall.bat`
 - `LICENSE.txt`
@@ -20,8 +22,8 @@ Produce a release directory containing:
 ## Prerequisites
 
 - Windows
-- `py` launcher available
-- Java / Maven available if `plugin/target/fiji-macro-bridge-1.0.0.jar` is not already built
+- `py -3.11` available
+- Java / Maven available if `plugin/target/Fiji_Macro_Bridge.jar` is not already built
 
 ## One-command build
 

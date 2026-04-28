@@ -69,8 +69,32 @@ function Remove-ClaudeServerEntry {
     Write-Utf8NoBom -Path $ConfigPath -Content $json
 }
 
-if ($manifest.claude_config_updated) {
-    Remove-ClaudeServerEntry -ConfigPath $manifest.claude_config_path
+function Remove-CodexManagedBlock {
+    param([string]$ConfigPath)
+
+    if (-not $ConfigPath -or -not (Test-Path $ConfigPath)) {
+        return
+    }
+
+    $raw = Get-Content -Path $ConfigPath -Raw
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        return
+    }
+
+    $begin = "# BEGIN Fiji Macro Bridge"
+    $end = "# END Fiji Macro Bridge"
+    $updated = [regex]::Replace($raw, [regex]::Escape($begin) + ".*?" + [regex]::Escape($end) + "(\r?\n)?", "", 'Singleline')
+    Write-Utf8NoBom -Path $ConfigPath -Content $updated
+}
+
+if ($manifest.configured_clients) {
+    foreach ($client in $manifest.configured_clients) {
+        if ($client.name -eq "claude-desktop") {
+            Remove-ClaudeServerEntry -ConfigPath $client.path
+        } elseif ($client.name -eq "codex-app") {
+            Remove-CodexManagedBlock -ConfigPath $client.path
+        }
+    }
 }
 
 if ($manifest.installed_jar -and (Test-Path $manifest.installed_jar)) {
@@ -88,9 +112,11 @@ if ($manifest.installed_jar) {
     Write-Host "Removed plugin JAR:"
     Write-Host "  $($manifest.installed_jar)"
 }
-if ($manifest.claude_config_updated) {
-    Write-Host "Removed Claude Desktop MCP entry from:"
-Write-Host "  $($manifest.claude_config_path)"
+if ($manifest.configured_clients) {
+    foreach ($client in $manifest.configured_clients) {
+        Write-Host "Removed managed client config from:"
+        Write-Host "  $($client.path)"
+    }
 }
 Write-Host ""
 Write-Host "Scheduled removal of the local install directory."

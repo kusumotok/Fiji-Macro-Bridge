@@ -4,7 +4,7 @@ This project is distributed under the MIT License. See [LICENSE](./LICENSE).
 
 Released artifacts may contain the following third-party components:
 
-## Included in `fiji-macro-bridge-1.0.0.jar`
+## Included in `Fiji_Macro_Bridge.jar`
 
 ### `org.json:json:20231013`
 
